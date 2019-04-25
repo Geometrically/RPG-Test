@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 
-using System;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Xml;
+using System.Xml.Serialization;
 
 public class DataManagement : MonoBehaviour
 {
@@ -24,15 +24,14 @@ public class DataManagement : MonoBehaviour
         }
 
         savesDirectory = Path.Combine(Application.persistentDataPath, "saves");
-        
+
         if (!Directory.Exists(savesDirectory))
             Directory.CreateDirectory(savesDirectory);
     }
 
     public void SaveData(int playerLives, string currentLevel, Checkpoint lastCheckpoint)
     {
-        var binaryFormatter = new BinaryFormatter();
-        var file = new FileStream(Path.Combine(savesDirectory, saveName + ".dat"), FileMode.OpenOrCreate);
+        var serializer = new XmlSerializer(typeof(GameData));
 
         var data = new GameData();
 
@@ -43,30 +42,31 @@ public class DataManagement : MonoBehaviour
         data.checkpointY = lastCheckpoint.transform.position.y;
         data.checkpointZ = lastCheckpoint.transform.position.z;
 
-        binaryFormatter.Serialize(file, data);
-        file.Close();
+        using (var stream = new FileStream(Path.Combine(savesDirectory, saveName + ".xml"), FileMode.Create))
+        {
+            serializer.Serialize(stream, data);
+        }
     }
 
     public GameData LoadData()
     {
-        string loadedFile = Path.Combine(Application.persistentDataPath, "saves", saveName + ".dat");
+        string loadedFile = Path.Combine(savesDirectory, saveName + ".xml");
 
         if (File.Exists(loadedFile))
         {
-            var binaryFormatter = new BinaryFormatter();
-            var file = File.Open(loadedFile, FileMode.Open);
+            var serializer = new XmlSerializer(typeof(GameData));
 
-            var gameData = (GameData)binaryFormatter.Deserialize(file);
-            file.Close();
-
-            return gameData;
+            using (var stream = new FileStream(Path.Combine(savesDirectory, saveName + ".xml"), FileMode.Open))
+            {
+                return serializer.Deserialize(stream) as GameData;
+            }
         }
 
         throw new FileNotFoundException();
     }
 }
 
-[Serializable]
+[XmlRoot("GameData")]
 public class GameData
 {
     public int playerLives;
